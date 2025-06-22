@@ -1,0 +1,516 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercise Challenge</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        #exercise-app {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            min-height: 100%;
+            padding: 16px;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(to right, #4f46e5, #7c3aed);
+            padding: 24px;
+            color: white;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .header p {
+            margin-top: 8px;
+            color: #e0e7ff;
+        }
+        .main-content {
+            padding: 24px;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .timer-display {
+            font-size: 48px;
+            font-weight: 700;
+            color: #4f46e5;
+            margin-bottom: 16px;
+        }
+        .exercise-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .exercise-card:hover {
+            transform: translateY(-5px);
+        }
+        .exercise-card iframe {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+        }
+        .exercise-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            padding: 16px;
+        }
+        .btn {
+            font-family: 'Poppins', sans-serif;
+            font-size: 16px;
+            font-weight: 500;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+        .btn-green {
+            background: #10b981;
+            color: white;
+        }
+        .btn-green:hover {
+            background: #059669;
+        }
+        .btn-yellow {
+            background: #eab308;
+            color: white;
+        }
+        .btn-yellow:hover {
+            background: #ca8a04;
+        }
+        .btn-red {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-red:hover {
+            background: #dc2626;
+        }
+        .btn-pink {
+            background: #ec4899;
+            color: white;
+        }
+        .btn-pink:hover {
+            background: #db2777;
+        }
+        .btn-blue {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-blue:hover {
+            background: #2563eb;
+        }
+        .gender-btn.active {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: fall 3s ease-in infinite;
+            pointer-events: none;
+        }
+        @keyframes fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        .hidden {
+            display: none;
+        }
+        .flex {
+            display: flex;
+        }
+        .justify-center {
+            justify-content: center;
+        }
+        .gap-4 {
+            gap: 16px;
+        }
+        .mt-4 {
+            margin-top: 16px;
+        }
+        .mb-6 {
+            margin-bottom: 24px;
+        }
+        .grid {
+            display: grid;
+            gap: 24px;
+        }
+        @media (min-width: 768px) {
+            .grid-cols-2 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .icon-circle {
+            width: 128px;
+            height: 128px;
+            background: #e0e7ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+        .icon-circle svg {
+            width: 64px;
+            height: 64px;
+            color: #4f46e5;
+        }
+        .text-red-500 {
+            color: #ef4444;
+        }
+        .text-gray-600 {
+            color: #4b5563;
+        }
+        .text-gray-500 {
+            color: #6b7280;
+        }
+        .max-w-md {
+            max-width: 448px;
+        }
+        .mx-auto {
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .opacity-50 {
+            opacity: 0.5;
+        }
+        .cursor-not-allowed {
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div id="exercise-app">
+        <div class="container">
+            <div class="header">
+                <h1>Exercise Challenge</h1>
+                <p>Complete 2 random exercises in 5 minutes!</p>
+            </div>
+            <div class="main-content">
+                <div id="start-screen" class="text-center">
+                    <div class="icon-circle">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Ready for your workout?</h2>
+                    <p class="text-gray-600 mb-6 max-w-md mx-auto">Select your gender to get exercises tailored for you:</p>
+                    <div class="flex justify-center gap-4 mb-6">
+                        <button id="ladies-btn" class="btn btn-pink gender-btn">Ladies</button>
+                        <button id="gents-btn" class="btn btn-blue gender-btn">Gents</button>
+                    </div>
+                    <button id="start-button" class="btn btn-primary opacity-50 cursor-not-allowed" disabled>Start Challenge</button>
+                    <p id="gender-prompt" class="mt-4 text-red-500 text-sm">Please select your gender first</p>
+                </div>
+                <div id="exercise-screen" class="hidden">
+                    <div class="mb-6 text-center">
+                        <div class="timer-display" id="timer">5:00</div>
+                        <div class="flex justify-center gap-4">
+                            <button id="start-timer-button" class="btn btn-green pulse">Start Timer</button>
+                            <button id="pause-button" class="btn btn-yellow hidden">Pause</button>
+                            <button id="reset-button" class="btn btn-red hidden">Reset</button>
+                        </div>
+                        <p id="timer-status" class="mt-4 text-sm text-gray-500">Timer ready. Click "Start Timer" when you're ready to begin.</p>
+                    </div>
+                    <div id="exercises-container" class="grid grid-cols-1 md:grid-cols-2"></div>
+                    <div class="mt-6 text-center">
+                        <button id="complete-button" class="btn btn-green">Complete Challenge</button>
+                    </div>
+                </div>
+                <div id="completion-screen" class="hidden text-center">
+                    <div class="icon-circle" style="background: #d1fae5;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Great job!</h2>
+                    <p class="text-gray-600 mb-6 max-w-md mx-auto">You've completed your workout challenge.</p>
+                    <button id="new-challenge-button" class="btn btn-primary">Try Another Challenge</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const exerciseData = {
+            ladies: [
+                { id: 1, title: "Plank Hold", videoId: "atFm5FQEK8c" },
+                { id: 2, title: "Side Lifts", videoId: "rG-NHKKvWeg" },
+                { id: 3, title: "Heel Taps", videoId: "Va9JNy9fyj4" },
+                { id: 4, title: "Push Throughs", videoId: "I2nmDoF0Twk" },
+                { id: 5, title: "Butt Bridges", videoId: "OkD9dPoMXfM" }
+            ],
+            gents: [
+                { id: 6, title: "Butt Kicks", videoId: "FXmqj341gn8" },
+                { id: 7, title: "Burpees", videoId: "Fy2MmO2FXGE" }
+            ]
+        };
+
+        const startScreen = document.getElementById('start-screen');
+        const exerciseScreen = document.getElementById('exercise-screen');
+        const completionScreen = document.getElementById('completion-screen');
+        const startButton = document.getElementById('start-button');
+        const ladiesBtn = document.getElementById('ladies-btn');
+        const gentsBtn = document.getElementById('gents-btn');
+        const genderPrompt = document.getElementById('gender-prompt');
+        const startTimerButton = document.getElementById('start-timer-button');
+        const pauseButton = document.getElementById('pause-button');
+        const resetButton = document.getElementById('reset-button');
+        const completeButton = document.getElementById('complete-button');
+        const newChallengeButton = document.getElementById('new-challenge-button');
+        const timerDisplay = document.getElementById('timer');
+        const timerStatus = document.getElementById('timer-status');
+        const exercisesContainer = document.getElementById('exercises-container');
+
+        let timeLeft = 5 * 60;
+        let timerInterval;
+        let isPaused = false;
+        let timerStarted = false;
+        let selectedGender = null;
+
+        function selectGender(gender) {
+            selectedGender = gender;
+            if (gender === 'ladies') {
+                ladiesBtn.classList.add('active');
+                gentsBtn.classList.remove('active');
+            } else {
+                gentsBtn.classList.add('active');
+                ladiesBtn.classList.remove('active');
+            }
+            startButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            startButton.disabled = false;
+            genderPrompt.classList.add('hidden');
+        }
+
+        function getRandomExercises(gender, count) {
+            const exercises = exerciseData[gender];
+            const shuffled = [...exercises].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, Math.min(count, exercises.length));
+        }
+
+        function displayExercises(exercises) {
+            exercisesContainer.innerHTML = '';
+            exercises.forEach(exercise => {
+                const exerciseCard = document.createElement('div');
+                exerciseCard.className = 'exercise-card';
+                exerciseCard.innerHTML = `
+                    <iframe 
+                        src="https://www.youtube.com/embed/${exercise.videoId}" 
+                        title="${exercise.title}"
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                    </iframe>
+                    <h3>${exercise.title}</h3>
+                `;
+                exercisesContainer.appendChild(exerciseCard);
+            });
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            if (timeLeft <= 60) {
+                timerDisplay.classList.add('text-red-500');
+            } else {
+                timerDisplay.classList.remove('text-red-500');
+            }
+        }
+
+        function startTimer() {
+            if (timerStarted) return;
+            timerStarted = true;
+            startTimerButton.classList.add('hidden');
+            pauseButton.classList.remove('hidden');
+            resetButton.classList.remove('hidden');
+            timerStatus.textContent = "Timer running...";
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!isPaused) {
+                    timeLeft--;
+                    updateTimerDisplay();
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        showCompletionScreen();
+                    }
+                }
+            }, 1000);
+        }
+
+        function togglePauseTimer() {
+            isPaused = !isPaused;
+            pauseButton.textContent = isPaused ? 'Resume' : 'Pause';
+            timerStatus.textContent = isPaused ? "Timer paused" : "Timer running...";
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 5 * 60;
+            isPaused = false;
+            timerStarted = false;
+            startTimerButton.classList.remove('hidden');
+            pauseButton.classList.add('hidden');
+            resetButton.classList.add('hidden');
+            pauseButton.textContent = 'Pause';
+            timerStatus.textContent = "Timer ready. Click \"Start Timer\" when you're ready to begin.";
+            updateTimerDisplay();
+        }
+
+        function showCompletionScreen() {
+            exerciseScreen.classList.add('hidden');
+            completionScreen.classList.remove('hidden');
+            for (let i = 0; i < 50; i++) {
+                createConfetti();
+            }
+        }
+
+        function createConfetti() {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            const left = Math.random() * 100;
+            const colors = ['#FFC700', '#FF0055', '#2F2BAD', '#00DDFF', '#7FFF00'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const size = Math.random() * 10 + 5;
+            const animationDuration = Math.random() * 3 + 2;
+            confetti.style.left = `${left}vw`;
+            confetti.style.backgroundColor = color;
+            confetti.style.width = `${size}px`;
+            confetti.style.height = `${size}px`;
+            confetti.style.animationDuration = `${animationDuration}s`;
+            document.getElementById('exercise-app').appendChild(confetti);
+            setTimeout(() => {
+                confetti.remove();
+            }, animationDuration * 1000);
+        }
+
+        ladiesBtn.addEventListener('click', () => selectGender('ladies'));
+        gentsBtn.addEventListener('click', () => selectGender('gents'));
+        startButton.addEventListener('click', () => {
+            if (!selectedGender) return;
+            startScreen.classList.add('hidden');
+            exerciseScreen.classList.remove('hidden');
+            const randomExercises = getRandomExercises(selectedGender, 2);
+            displayExercises(randomExercises);
+            resetTimer();
+        });
+        startTimerButton.addEventListener('click', startTimer);
+        pauseButton.addEventListener('click', togglePauseTimer);
+        resetButton.addEventListener('click', resetTimer);
+        completeButton.addEventListener('click', () => {
+            clearInterval(timerInterval);
+            showCompletionScreen();
+        });
+        newChallengeButton.addEventListener('click', () => {
+            completionScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            selectedGender = null;
+            ladiesBtn.classList.remove('active');
+            gentsBtn.classList.remove('active');
+            startButton.classList.add('opacity-50', 'cursor-not-allowed');
+            startButton.disabled = true;
+            genderPrompt.classList.remove('hidden');
+        });
+
+        updateTimerDisplay();
+    </script>
+</body>
+</html>
